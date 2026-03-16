@@ -12,58 +12,88 @@
     <title>FlowCheck</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Настройка Tailwind для поддержки тёмной темы через класс -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #fff; overscroll-behavior-y: none;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overscroll-behavior-y: none; transition: background-color 0.3s;}
+        
+        /* Стили для вкладок с поддержкой тёмной темы */
         .ios-tab { padding: 8px 0; text-align: center; border-radius: 8px; font-weight: 500; font-size: 14px; transition: 0.2s; cursor: pointer;}
         .ios-tab.active { background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #000; }
         .ios-tab.inactive { color: #8e8e93; }
-        .tab-bg { background-color: #f2f2f7; border-radius: 10px; padding: 2px; display: flex; }
         
-        #splash { position: fixed; inset: 0; background: white; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease-out; }
+        .dark .ios-tab.active { background-color: #374151; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .dark .ios-tab.inactive { color: #9ca3af; }
+        
+        .tab-bg { background-color: #f2f2f7; border-radius: 10px; padding: 2px; display: flex; transition: 0.3s;}
+        .dark .tab-bg { background-color: #1f2937; }
+        
+        #splash { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease-out; }
         .pulse { animation: pulseAnim 1s infinite alternate; }
         @keyframes pulseAnim { from { opacity: 0.6; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
         
-        #modal { display: none; position: fixed; inset: 0; background: white; z-index: 40; flex-direction: column;}
+        .modal { display: none; position: fixed; inset: 0; z-index: 40; flex-direction: column;}
+        
+        /* Стили для переключателя (Switch) */
+        .toggle-checkbox:checked { right: 0; border-color: #3B82F6; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3B82F6; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <!-- Применение сохраненной темы до полной загрузки, чтобы не было "белой вспышки" -->
+    <script>
+        if (localStorage.getItem('flowCheckTheme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
 
     <!-- ЭКРАН ЗАГРУЗКИ -->
-    <div id="splash">
+    <div id="splash" class="bg-white dark:bg-gray-900">
         <img src="logo.png" alt="Логотип" class="w-28 h-28 mb-4 pulse rounded-3xl shadow-lg object-cover" onerror="this.style.display='none'">
-        <h1 class="text-3xl font-bold pulse text-gray-800">FlowCheck</h1>
+        <h1 class="text-3xl font-bold pulse text-gray-800 dark:text-white">FlowCheck</h1>
     </div>
 
     <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
-    <div class="px-4 pt-4 pb-2 bg-white flex items-center justify-between gap-3 z-10">
+    <div class="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex items-center justify-between gap-3 z-10">
         <div class="flex items-center gap-2 text-blue-500 font-bold text-xl cursor-pointer" onclick="resetSearch()">
             <img src="logo.png" alt="Лого" class="w-7 h-7 rounded-md object-cover" onerror="this.style.display='none'"> 
             FlowCheck
         </div>
-        <div class="flex-1 bg-gray-100 rounded-lg flex items-center px-3 py-2 text-sm">
+        <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center px-3 py-2 text-sm transition-colors">
             <i class="fa-solid fa-search text-gray-400 mr-2"></i>
-            <input type="text" id="searchInput" placeholder="Поиск..." class="bg-transparent border-none outline-none w-full" oninput="renderList()">
+            <input type="text" id="searchInput" placeholder="Поиск..." class="bg-transparent border-none outline-none w-full dark:text-white" oninput="renderList()">
         </div>
-        <button onclick="openChart()" class="text-blue-500 text-2xl"><i class="fa-solid fa-chart-pie"></i></button>
+        
+        <!-- Кнопки справа -->
+        <div class="flex items-center gap-3">
+            <button onclick="openChart()" class="text-blue-500 text-2xl"><i class="fa-solid fa-chart-pie"></i></button>
+            <button onclick="openSettings()" class="text-gray-500 dark:text-gray-400 text-2xl"><i class="fa-solid fa-gear"></i></button>
+        </div>
     </div>
 
-    <!-- БЛОК С ОБЩИМИ СУММАМИ (МАПАТЫ) -->
-    <div class="px-4 py-2 bg-white flex gap-3 z-10">
-        <div class="flex-1 bg-blue-50 rounded-xl p-3 border border-blue-100">
-            <div class="text-xs text-blue-500 font-semibold mb-1 uppercase tracking-wider">Всего Личные</div>
-            <div id="totalPersonal" class="text-xl font-bold text-blue-700">0.00 ₼</div>
+    <!-- БЛОК С ОБЩИМИ СУММАМИ -->
+    <div class="px-4 py-2 bg-white dark:bg-gray-900 flex gap-3 z-10">
+        <div class="flex-1 bg-blue-50 dark:bg-blue-900/30 rounded-xl p-3 border border-blue-100 dark:border-blue-800/50 transition-colors">
+            <div class="text-xs text-blue-500 dark:text-blue-400 font-semibold mb-1 uppercase tracking-wider">Всего Личные</div>
+            <div id="totalPersonal" class="text-xl font-bold text-blue-700 dark:text-blue-300">0.00</div>
         </div>
-        <div class="flex-1 bg-purple-50 rounded-xl p-3 border border-purple-100">
-            <div class="text-xs text-purple-500 font-semibold mb-1 uppercase tracking-wider">Всего Рабочие</div>
-            <div id="totalWork" class="text-xl font-bold text-purple-700">0.00 ₼</div>
+        <div class="flex-1 bg-purple-50 dark:bg-purple-900/30 rounded-xl p-3 border border-purple-100 dark:border-purple-800/50 transition-colors">
+            <div class="text-xs text-purple-500 dark:text-purple-400 font-semibold mb-1 uppercase tracking-wider">Всего Рабочие</div>
+            <div id="totalWork" class="text-xl font-bold text-purple-700 dark:text-purple-300">0.00</div>
         </div>
     </div>
 
     <!-- ПЕРЕКЛЮЧАТЕЛЬ Личные/Рабочие -->
-    <div class="px-4 pb-3 pt-1 bg-white border-b border-gray-100 z-10" id="tabsContainer">
+    <div class="px-4 pb-3 pt-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-10 transition-colors" id="tabsContainer">
         <div class="tab-bg">
             <div id="tab0" class="flex-1 ios-tab active" onclick="setTab(0)">Личные расходы</div>
             <div id="tab1" class="flex-1 ios-tab inactive" onclick="setTab(1)">Рабочие расходы</div>
@@ -71,18 +101,18 @@
     </div>
 
     <!-- СПИСОК РАСХОДОВ -->
-    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-24 bg-white"></div>
+    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-24 bg-white dark:bg-gray-900 transition-colors"></div>
 
     <!-- ПАНЕЛЬ ДОБАВЛЕНИЯ -->
-    <div class="fixed bottom-0 left-0 right-0 bg-gray-50 border-t border-gray-200 p-4 pb-6 flex gap-2 z-20">
-        <input type="text" id="newName" placeholder="Название" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg">
-        <input type="number" inputmode="decimal" id="newAmount" placeholder="Сумма" class="w-24 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg">
+    <div class="fixed bottom-0 left-0 right-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 pb-6 flex gap-2 z-20 transition-colors">
+        <input type="text" id="newName" placeholder="Название" class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg transition-colors">
+        <input type="number" inputmode="decimal" id="newAmount" placeholder="Сумма" class="w-24 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg transition-colors">
         <button onclick="addExpense()" class="text-green-500 text-4xl"><i class="fa-solid fa-circle-plus"></i></button>
     </div>
 
-    <!-- ОКНО АНАЛИТИКИ -->
-    <div id="modal">
-        <div class="flex justify-between items-center p-4 border-b">
+    <!-- ОКНО АНАЛИТИКИ (График) -->
+    <div id="chartModal" class="modal bg-white dark:bg-gray-900">
+        <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
             <h2 class="text-xl font-bold">Аналитика</h2>
             <button onclick="closeChart()" class="text-blue-500 font-semibold text-lg">Закрыть</button>
         </div>
@@ -100,21 +130,77 @@
         </div>
     </div>
 
-    <script>
-        // ИЗМЕНЕНО: Ключ V2, чтобы сбросить старые поломанные данные
-        let expenses = [];
-        try {
-            expenses = JSON.parse(localStorage.getItem('flowCheckDataV2')) || [];
-            if (!Array.isArray(expenses)) expenses = [];
-        } catch(e) {
-            expenses = [];
-        }
+    <!-- ОКНО НАСТРОЕК (Новое) -->
+    <div id="settingsModal" class="modal bg-white dark:bg-gray-900">
+        <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
+            <h2 class="text-xl font-bold">Настройки</h2>
+            <button onclick="closeSettings()" class="text-blue-500 font-semibold text-lg">Готово</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+            
+            <!-- Настройка Темы -->
+            <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-moon text-indigo-500 text-xl"></i>
+                    <span class="font-medium text-lg">Тёмная тема</span>
+                </div>
+                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="themeToggle" onchange="toggleTheme()" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 z-10 top-0 left-0"/>
+                    <label for="themeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer transition-colors duration-300"></label>
+                </div>
+            </div>
 
+            <!-- Настройка Валюты -->
+            <div class="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div class="flex items-center gap-3 mb-1">
+                    <i class="fa-solid fa-money-bill-wave text-green-500 text-xl"></i>
+                    <span class="font-medium text-lg">Основная валюта</span>
+                </div>
+                <select id="currencySelect" onchange="changeCurrency()" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-md rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none">
+                    <option value="₼">Манат (₼)</option>
+                    <option value="$">Доллар США ($)</option>
+                    <option value="€">Евро (€)</option>
+                    <option value="₽">Российский рубль (₽)</option>
+                    <option value="₺">Турецкая лира (₺)</option>
+                    <option value="₸">Казахстанский тенге (₸)</option>
+                    <option value="£">Британский фунт (£)</option>
+                    <option value="¥">Китайский юань (¥)</option>
+                </select>
+            </div>
+
+            <!-- Доп. Функция: Очистка данных -->
+            <div class="mt-8">
+                <button onclick="clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold py-3 rounded-xl transition-colors active:bg-red-200">
+                    <i class="fa-solid fa-trash-can"></i> Очистить все данные
+                </button>
+                <p class="text-xs text-center text-gray-400 mt-2">Удалит всю историю ваших расходов навсегда</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- СКРИПТЫ -->
+    <script>
+        // Инициализация переменных и настроек
+        let expenses = [];
         let currentTab = 0; 
         let modalTab = 0;
         let chartInstance = null;
+        
+        // Загрузка настроек из памяти
+        let currentCurrency = localStorage.getItem('flowCheckCurrency') || '₼';
+        let isDarkMode = localStorage.getItem('flowCheckTheme') === 'dark';
 
-        // Стартовые данные
+        // Применяем настройки UI при загрузке
+        document.getElementById('currencySelect').value = currentCurrency;
+        document.getElementById('themeToggle').checked = isDarkMode;
+
+        // Загрузка данных
+        try {
+            expenses = JSON.parse(localStorage.getItem('flowCheckDataV2')) || [];
+            if (!Array.isArray(expenses)) expenses = [];
+        } catch(e) { expenses = []; }
+
         if (expenses.length === 0) {
             const pers = ["Продукты", "Транспорт", "Аренда", "Кофе"];
             const work = ["Офис", "Софт", "Реклама", "Такси"];
@@ -123,26 +209,54 @@
             saveData();
         }
 
-        function saveData() { 
-            localStorage.setItem('flowCheckDataV2', JSON.stringify(expenses)); 
-        }
+        function saveData() { localStorage.setItem('flowCheckDataV2', JSON.stringify(expenses)); }
 
-        // БЕЗОПАСНОЕ УДАЛЕНИЕ ЗАГРУЗОЧНОГО ЭКРАНА
+        // Исчезновение сплеш-экрана
         window.addEventListener('load', () => {
             setTimeout(() => {
                 const splash = document.getElementById('splash');
                 if (splash) {
                     splash.style.opacity = '0';
-                    setTimeout(() => {
-                        splash.style.display = 'none';
-                        renderList(); // Рендерим только когда экран пропал
-                    }, 400);
-                } else {
-                    renderList();
-                }
+                    setTimeout(() => { splash.style.display = 'none'; renderList(); }, 400);
+                } else { renderList(); }
             }, 1000);
         });
 
+        // --- ЛОГИКА НАСТРОЕК ---
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            isDarkMode = document.getElementById('themeToggle').checked;
+            
+            if (isDarkMode) {
+                html.classList.add('dark');
+                localStorage.setItem('flowCheckTheme', 'dark');
+            } else {
+                html.classList.remove('dark');
+                localStorage.setItem('flowCheckTheme', 'light');
+            }
+            if (chartInstance) renderChart(); // Перерисовка графика для смены цвета текста
+        }
+
+        function changeCurrency() {
+            currentCurrency = document.getElementById('currencySelect').value;
+            localStorage.setItem('flowCheckCurrency', currentCurrency);
+            renderList(); // Обновляем списки и суммы с новой валютой
+            if (document.getElementById('chartModal').style.display === 'flex') renderChart();
+        }
+
+        function clearAllData() {
+            if (confirm("Вы уверены, что хотите удалить ВСЕ данные? Это действие нельзя отменить.")) {
+                expenses = [];
+                saveData();
+                renderList();
+                closeSettings();
+            }
+        }
+
+        // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
         function setTab(index) {
             currentTab = index;
             document.getElementById('tab0').className = `flex-1 ios-tab ${index === 0 ? 'active' : 'inactive'}`;
@@ -155,22 +269,16 @@
             renderList();
         }
 
-        // БЕЗОПАСНЫЙ ПОДСЧЕТ СУММ
         function updateTotals() {
-            try {
-                let sumPersonal = expenses.filter(e => e.category === "Личные").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-                let sumWork = expenses.filter(e => e.category === "Рабочие").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-                
-                document.getElementById('totalPersonal').innerText = sumPersonal.toFixed(2) + ' ₼';
-                document.getElementById('totalWork').innerText = sumWork.toFixed(2) + ' ₼';
-            } catch (error) {
-                console.error("Ошибка подсчета:", error);
-            }
+            let sumPersonal = expenses.filter(e => e.category === "Личные").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+            let sumWork = expenses.filter(e => e.category === "Рабочие").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+            
+            document.getElementById('totalPersonal').innerText = sumPersonal.toFixed(2) + ' ' + currentCurrency;
+            document.getElementById('totalWork').innerText = sumWork.toFixed(2) + ' ' + currentCurrency;
         }
 
         function renderList() {
             updateTotals();
-
             const container = document.getElementById('listContainer');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const isSearching = search.length > 0;
@@ -178,12 +286,8 @@
             document.getElementById('tabsContainer').style.opacity = isSearching ? '0.5' : '1';
 
             let filtered = expenses.filter(e => {
-                if (isSearching) {
-                    return e.name.toLowerCase().includes(search);
-                } else {
-                    const cat = currentTab === 0 ? "Личные" : "Рабочие";
-                    return e.category === cat;
-                }
+                if (isSearching) return e.name.toLowerCase().includes(search);
+                return e.category === (currentTab === 0 ? "Личные" : "Рабочие");
             });
 
             filtered.sort((a,b) => b.id - a.id); 
@@ -195,26 +299,26 @@
 
             container.innerHTML = filtered.map(e => {
                 const isPersonal = e.category === "Личные";
-                const amountColor = isPersonal ? "text-blue-500" : "text-purple-500";
+                const amountColor = isPersonal ? "text-blue-500" : "text-purple-500 text-purple-400";
                 
                 let categoryBadge = '';
                 if (isSearching) {
                     categoryBadge = isPersonal 
-                        ? `<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full ml-2">Личные</span>`
-                        : `<span class="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full ml-2">Рабочие</span>`;
+                        ? `<span class="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full ml-2">Личные</span>`
+                        : `<span class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] px-2 py-0.5 rounded-full ml-2">Рабочие</span>`;
                 }
 
                 return `
-                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                <div class="flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-800">
                     <div>
-                        <div class="font-semibold text-gray-800 text-lg flex items-center">
+                        <div class="font-semibold text-gray-800 dark:text-gray-100 text-lg flex items-center">
                             ${e.name} ${categoryBadge}
                         </div>
-                        <div class="text-xs text-gray-400">${e.date}</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500">${e.date}</div>
                     </div>
                     <div class="flex items-center gap-4">
-                        <div class="font-bold text-lg ${amountColor}">${(Number(e.amount) || 0).toFixed(2)} ₼</div>
-                        <button onclick="deleteExpense(${e.id})" class="text-red-400 text-xl p-2"><i class="fa-solid fa-trash"></i></button>
+                        <div class="font-bold text-lg ${amountColor}">${(Number(e.amount) || 0).toFixed(2)} ${currentCurrency}</div>
+                        <button onclick="deleteExpense(${e.id})" class="text-red-400 hover:text-red-500 text-xl p-2"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
                 `;
@@ -226,33 +330,21 @@
             let amount = document.getElementById('newAmount').value.replace(',', '.'); 
             
             if (name && amount && !isNaN(amount)) {
-                expenses.unshift({ 
-                    id: Date.now(), 
-                    name: name, 
-                    amount: parseFloat(amount), 
-                    category: currentTab === 0 ? "Личные" : "Рабочие", 
-                    date: new Date().toLocaleDateString() 
-                });
+                expenses.unshift({ id: Date.now(), name: name, amount: parseFloat(amount), category: currentTab === 0 ? "Личные" : "Рабочие", date: new Date().toLocaleDateString() });
                 saveData();
-                document.getElementById('newName').value = '';
-                document.getElementById('newAmount').value = '';
-                document.getElementById('newName').blur();
-                document.getElementById('newAmount').blur();
-                
+                document.getElementById('newName').value = ''; document.getElementById('newAmount').value = '';
+                document.getElementById('newName').blur(); document.getElementById('newAmount').blur();
                 renderList();
             } else {
                 alert("Пожалуйста, введите название и корректную сумму.");
             }
         }
 
-        function deleteExpense(id) {
-            expenses = expenses.filter(e => e.id !== id);
-            saveData();
-            renderList();
-        }
+        function deleteExpense(id) { expenses = expenses.filter(e => e.id !== id); saveData(); renderList(); }
 
-        function openChart() { document.getElementById('modal').style.display = 'flex'; setModalTab(currentTab); }
-        function closeChart() { document.getElementById('modal').style.display = 'none'; }
+        // --- ГРАФИК ---
+        function openChart() { document.getElementById('chartModal').style.display = 'flex'; setModalTab(currentTab); }
+        function closeChart() { document.getElementById('chartModal').style.display = 'none'; }
 
         function setModalTab(index) {
             modalTab = index;
@@ -267,20 +359,23 @@
             
             const listContainer = document.getElementById('topListContainer');
             if(top.length === 0) {
-                listContainer.innerHTML = `<div class="text-center text-gray-400 mt-10">Нет данных для графика</div>`;
+                listContainer.innerHTML = `<div class="text-center text-gray-400 mt-10">Нет данных</div>`;
                 if (chartInstance) chartInstance.destroy();
                 return;
             }
 
             listContainer.innerHTML = top.map((e, index) => `
-                <div class="flex justify-between py-3 border-b border-gray-100">
-                    <span class="text-gray-700 font-medium">${index + 1}. ${e.name}</span>
-                    <span class="font-bold text-gray-900">${(Number(e.amount) || 0).toFixed(2)} ₼</span>
+                <div class="flex justify-between py-3 border-b border-gray-100 dark:border-gray-800">
+                    <span class="text-gray-700 dark:text-gray-300 font-medium">${index + 1}. ${e.name}</span>
+                    <span class="font-bold text-gray-900 dark:text-gray-100">${(Number(e.amount) || 0).toFixed(2)} ${currentCurrency}</span>
                 </div>
             `).join('');
 
             const ctx = document.getElementById('myChart').getContext('2d');
             if (chartInstance) chartInstance.destroy(); 
+
+            // Настройка цвета текста легенды графика в зависимости от темы
+            Chart.defaults.color = isDarkMode ? '#9ca3af' : '#4b5563';
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -289,7 +384,9 @@
                     datasets: [{
                         data: top.map(e => e.amount),
                         backgroundColor: ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16', '#06B6D4'],
-                        borderWidth: 0, hoverOffset: 4
+                        borderWidth: isDarkMode ? 2 : 0,
+                        borderColor: isDarkMode ? '#1f2937' : '#fff', // Обводка графика под цвет фона
+                        hoverOffset: 4
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } }, cutout: '65%' }
