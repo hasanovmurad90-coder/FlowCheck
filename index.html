@@ -3,374 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FlowCheck">
-    <link rel="apple-touch-icon" href="logo.png">
     
     <title>FlowCheck</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-        }
+        tailwind.config = { darkMode: 'class' }
     </script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overscroll-behavior-y: none; transition: background-color 0.3s;}
-        
-        .ios-tab { padding: 8px 0; text-align: center; border-radius: 8px; font-weight: 500; font-size: 14px; transition: 0.2s; cursor: pointer;}
+        body { font-family: -apple-system, system-ui, sans-serif; overscroll-behavior-y: none; transition: 0.3s; }
+        .ios-tab { padding: 8px 0; text-align: center; border-radius: 8px; font-weight: 500; font-size: 14px; cursor: pointer; transition: 0.2s;}
         .ios-tab.active { background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #000; }
         .ios-tab.inactive { color: #8e8e93; }
-        
-        .dark .ios-tab.active { background-color: #374151; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-        .dark .ios-tab.inactive { color: #9ca3af; }
-        
-        .tab-bg { background-color: #f2f2f7; border-radius: 10px; padding: 2px; display: flex; transition: 0.3s;}
+        .dark .ios-tab.active { background-color: #374151; color: #fff; }
+        .tab-bg { background-color: #f2f2f7; border-radius: 10px; padding: 2px; display: flex; }
         .dark .tab-bg { background-color: #1f2937; }
-        
-        #splash { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease-out; }
-        .pulse { animation: pulseAnim 1s infinite alternate; }
-        @keyframes pulseAnim { from { opacity: 0.6; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
-        
-        .modal { display: none; position: fixed; inset: 0; z-index: 40; flex-direction: column;}
-        
-        .toggle-checkbox:checked { right: 0; border-color: #3B82F6; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #3B82F6; }
-
-        /* Стиль для инпута даты, чтобы он выглядел как родной iOS */
-        input[type="date"]::-webkit-inner-spin-button,
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            display: block;
-            cursor: pointer;
-        }
+        .modal { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; background: inherit; }
+        #splash { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; transition: opacity 0.5s; }
+        .dark #splash { background: #111827; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+<body class="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
 
     <script>
-        if (localStorage.getItem('flowCheckTheme') === 'dark') {
-            document.documentElement.classList.add('dark');
-        }
+        // Мгновенное применение темы при загрузке
+        if (localStorage.getItem('fc_theme') === 'dark') document.documentElement.classList.add('dark');
     </script>
 
-    <div id="splash" class="bg-white dark:bg-gray-900">
-        <img src="logo.png" alt="Логотип" class="w-28 h-28 mb-4 pulse rounded-3xl shadow-lg object-cover" onerror="this.style.display='none'">
-        <h1 class="text-3xl font-bold pulse text-gray-800 dark:text-white">FlowCheck</h1>
+    <div id="splash">
+        <h1 class="text-4xl font-bold text-blue-500 animate-pulse">FlowCheck</h1>
     </div>
 
-    <div class="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex items-center justify-between gap-3 z-10">
-        <div class="flex items-center gap-2 text-blue-500 font-bold text-xl cursor-pointer" onclick="resetSearch()">
-            <img src="logo.png" alt="Лого" class="w-7 h-7 rounded-md object-cover" onerror="this.style.display='none'"> 
-            FlowCheck
+    <div class="px-4 pt-4 pb-2 flex items-center justify-between gap-3">
+        <div class="text-blue-500 font-bold text-xl flex items-center gap-2">
+            <i class="fa-solid fa-wallet"></i> FlowCheck
         </div>
-        <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center px-3 py-2 text-sm transition-colors">
+        <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center px-3 py-2">
             <i class="fa-solid fa-search text-gray-400 mr-2"></i>
-            <input type="text" id="searchInput" placeholder="Поиск..." class="bg-transparent border-none outline-none w-full dark:text-white" oninput="renderList()">
+            <input type="text" id="searchInput" placeholder="Поиск..." class="bg-transparent outline-none w-full" oninput="renderList()">
         </div>
-        <div class="flex items-center gap-3">
-            <button onclick="openChart()" class="text-blue-500 text-2xl"><i class="fa-solid fa-chart-pie"></i></button>
-            <button onclick="openSettings()" class="text-gray-500 dark:text-gray-400 text-2xl"><i class="fa-solid fa-gear"></i></button>
-        </div>
-    </div>
-
-    <div class="px-4 py-2 bg-white dark:bg-gray-900 flex gap-3 z-10">
-        <div class="flex-1 bg-blue-50 dark:bg-blue-900/30 rounded-xl p-3 border border-blue-100 dark:border-blue-800/50">
-            <div class="text-xs text-blue-500 dark:text-blue-400 font-semibold mb-1 uppercase tracking-wider">Всего Личные</div>
-            <div id="totalPersonal" class="text-xl font-bold text-blue-700 dark:text-blue-300">0.00</div>
-        </div>
-        <div class="flex-1 bg-purple-50 dark:bg-purple-900/30 rounded-xl p-3 border border-purple-100 dark:border-purple-800/50">
-            <div class="text-xs text-purple-500 dark:text-purple-400 font-semibold mb-1 uppercase tracking-wider">Всего Рабочие</div>
-            <div id="totalWork" class="text-xl font-bold text-purple-700 dark:text-purple-300">0.00</div>
+        <div class="flex gap-4">
+            <button onclick="openChart()" class="text-blue-500 text-xl"><i class="fa-solid fa-chart-line"></i></button>
+            <button onclick="openSettings()" class="text-gray-500 text-xl"><i class="fa-solid fa-gear"></i></button>
         </div>
     </div>
 
-    <div class="px-4 pb-3 pt-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-10" id="tabsContainer">
+    <div class="px-4 py-2 flex gap-3">
+        <div class="flex-1 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-2xl border border-blue-100 dark:border-blue-800">
+            <div class="text-[10px] text-blue-500 uppercase font-bold tracking-wider">Личные</div>
+            <div id="totalPersonal" class="text-xl font-bold">0.00 ₼</div>
+        </div>
+        <div class="flex-1 bg-purple-50 dark:bg-purple-900/20 p-3 rounded-2xl border border-purple-100 dark:border-purple-800">
+            <div class="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Рабочие</div>
+            <div id="totalWork" class="text-xl font-bold">0.00 ₼</div>
+        </div>
+    </div>
+
+    <div class="px-4 py-2">
         <div class="tab-bg">
             <div id="tab0" class="flex-1 ios-tab active" onclick="setTab(0)">Личные расходы</div>
             <div id="tab1" class="flex-1 ios-tab inactive" onclick="setTab(1)">Рабочие расходы</div>
         </div>
     </div>
 
-    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-32 bg-white dark:bg-gray-900 transition-colors"></div>
+    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-40"></div>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 pb-6 z-20 transition-colors">
-        <div class="flex flex-wrap gap-2">
-            <input type="text" id="newName" placeholder="Название" class="flex-1 min-w-[140px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-base">
-            <input type="date" id="newDate" class="w-auto border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg px-2 py-2 outline-none focus:border-blue-500 text-sm">
-            <input type="number" inputmode="decimal" id="newAmount" placeholder="0.00" class="w-24 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg">
-            <button onclick="addExpense()" class="text-green-500 text-4xl"><i class="fa-solid fa-circle-plus"></i></button>
-        </div>
-    </div>
-
-    <div id="chartModal" class="modal bg-white dark:bg-gray-900">
-        <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 class="text-xl font-bold">Аналитика</h2>
-            <button onclick="closeChart()" class="text-blue-500 font-semibold text-lg">Закрыть</button>
-        </div>
-        <div class="px-4 py-3">
-            <div class="tab-bg">
-                <div id="modalTab0" class="flex-1 ios-tab active" onclick="setModalTab(0)">Личные</div>
-                <div id="modalTab1" class="flex-1 ios-tab inactive" onclick="setModalTab(1)">Рабочие</div>
+    <div class="fixed bottom-0 left-0 right-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 pb-8 shadow-inner z-50">
+        <div class="flex flex-col gap-3">
+            <div class="flex gap-2">
+                <input type="text" id="newName" placeholder="На что потратили?" class="flex-1 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none focus:ring-2 ring-blue-500">
+                <input type="number" id="newAmount" placeholder="0.00" class="w-28 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none font-bold text-blue-500">
             </div>
-        </div>
-        <div class="flex-1 overflow-y-auto px-4 pb-10">
-            <div class="relative w-full h-64 flex justify-center mt-4">
-                <canvas id="myChart"></canvas>
-            </div>
-            <div id="topListContainer" class="mt-6"></div>
-        </div>
-    </div>
-
-    <div id="settingsModal" class="modal bg-white dark:bg-gray-900">
-        <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 class="text-xl font-bold">Настройки</h2>
-            <button onclick="closeSettings()" class="text-blue-500 font-semibold text-lg">Готово</button>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-6">
-            <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-moon text-indigo-500 text-xl"></i>
-                    <span class="font-medium text-lg">Тёмная тема</span>
-                </div>
-                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
-                    <input type="checkbox" name="toggle" id="themeToggle" onchange="toggleTheme()" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 z-10 top-0 left-0"/>
-                    <label for="themeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer transition-colors duration-300"></label>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                <div class="flex items-center gap-3 mb-1">
-                    <i class="fa-solid fa-money-bill-wave text-green-500 text-xl"></i>
-                    <span class="font-medium text-lg">Основная валюта</span>
-                </div>
-                <select id="currencySelect" onchange="changeCurrency()" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-md rounded-lg p-2.5 outline-none">
-                    <option value="₼">Манат (₼)</option>
-                    <option value="$">Доллар США ($)</option>
-                    <option value="€">Евро (€)</option>
-                    <option value="₽">Российский рубль (₽)</option>
-                    <option value="₺">Турецкая лира (₺)</option>
-                    <option value="₸">Казахстанский тенге (₸)</option>
-                </select>
-            </div>
-
-            <div class="mt-8">
-                <button onclick="clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold py-3 rounded-xl active:bg-red-200">
-                    <i class="fa-solid fa-trash-can"></i> Очистить все данные
+            <div class="flex gap-2 items-center">
+                <input type="date" id="newDate" class="flex-1 p-3 rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none">
+                <button onclick="addExpense()" class="bg-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all">
+                    <i class="fa-solid fa-plus mr-2"></i> Добавить
                 </button>
             </div>
         </div>
     </div>
 
-    <script>
-        let expenses = [];
-        let currentTab = 0; 
-        let modalTab = 0;
-        let chartInstance = null;
+    <div id="settingsModal" class="modal p-6">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold">Настройки</h2>
+            <button onclick="closeSettings()" class="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg font-bold">Закрыть</button>
+        </div>
         
-        let currentCurrency = localStorage.getItem('flowCheckCurrency') || '₼';
-        let isDarkMode = localStorage.getItem('flowCheckTheme') === 'dark';
+        <div class="space-y-4">
+            <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                <span><i class="fa-solid fa-moon mr-2"></i> Темная тема</span>
+                <input type="checkbox" id="themeToggle" onchange="toggleTheme()" class="w-6 h-6">
+            </div>
 
-        document.getElementById('currencySelect').value = currentCurrency;
-        document.getElementById('themeToggle').checked = isDarkMode;
+            <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                <span><i class="fa-solid fa-coins mr-2"></i> Валюта</span>
+                <select id="currencySelect" onchange="updateCurrency()" class="bg-transparent font-bold outline-none">
+                    <option value="₼">₼ (AZN)</option>
+                    <option value="$">$ (USD)</option>
+                    <option value="€">€ (EUR)</option>
+                    <option value="₽">₽ (RUB)</option>
+                </select>
+            </div>
 
-        // Загрузка данных
-        try {
-            expenses = JSON.parse(localStorage.getItem('flowCheckDataV2')) || [];
-        } catch(e) { expenses = []; }
+            <button onclick="clearAllData()" class="w-full p-4 mt-10 bg-red-100 text-red-600 rounded-2xl font-bold active:bg-red-200">
+                <i class="fa-solid fa-trash mr-2"></i> Очистить все данные
+            </button>
+        </div>
+    </div>
 
-        function saveData() { localStorage.setItem('flowCheckDataV2', JSON.stringify(expenses)); }
+    <div id="chartModal" class="modal p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">Аналитика</h2>
+            <button onclick="closeChart()" class="text-blue-500">Готово</button>
+        </div>
+        <div class="h-64 mb-6">
+            <canvas id="myChart"></canvas>
+        </div>
+        <div id="topList" class="space-y-2 overflow-y-auto flex-1"></div>
+    </div>
 
-        // Сплэш-экран
-        window.addEventListener('load', () => {
+    <script>
+        // Состояние приложения
+        let expenses = JSON.parse(localStorage.getItem('fc_data_final')) || [];
+        let currentTab = 0;
+        let currency = localStorage.getItem('fc_currency') || '₼';
+        let chartInstance = null;
+
+        // Запуск
+        window.onload = () => {
+            document.getElementById('newDate').valueAsDate = new Date();
+            document.getElementById('currencySelect').value = currency;
+            document.getElementById('themeToggle').checked = document.documentElement.classList.contains('dark');
+            
             setTimeout(() => {
-                const splash = document.getElementById('splash');
-                if (splash) {
-                    splash.style.opacity = '0';
-                    setTimeout(() => { splash.style.display = 'none'; renderList(); }, 400);
-                }
+                document.getElementById('splash').style.opacity = '0';
+                setTimeout(() => document.getElementById('splash').style.display = 'none', 500);
+                renderList();
             }, 800);
-        });
+        };
 
-        // Настройки
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            isDarkMode = document.getElementById('themeToggle').checked;
-            if (isDarkMode) {
-                html.classList.add('dark');
-                localStorage.setItem('flowCheckTheme', 'dark');
-            } else {
-                html.classList.remove('dark');
-                localStorage.setItem('flowCheckTheme', 'light');
-            }
-            if (chartInstance) renderChart();
+        function setTab(i) {
+            currentTab = i;
+            document.getElementById('tab0').className = `flex-1 ios-tab ${i === 0 ? 'active' : 'inactive'}`;
+            document.getElementById('tab1').className = `flex-1 ios-tab ${i === 1 ? 'active' : 'inactive'}`;
+            renderList();
         }
 
-        function changeCurrency() {
-            currentCurrency = document.getElementById('currencySelect').value;
-            localStorage.setItem('flowCheckCurrency', currentCurrency);
+        function renderList() {
+            const container = document.getElementById('listContainer');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = expenses.filter(e => {
+                const matchTab = e.category === (currentTab === 0 ? 'Личные' : 'Рабочие');
+                const matchSearch = e.name.toLowerCase().includes(search);
+                return matchTab && matchSearch;
+            });
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+
+            // Считаем итоги
+            const sumP = expenses.filter(e => e.category === 'Личные').reduce((s, e) => s + e.amount, 0);
+            const sumW = expenses.filter(e => e.category === 'Рабочие').reduce((s, e) => s + e.amount, 0);
+            
+            document.getElementById('totalPersonal').innerText = `${sumP.toFixed(2)} ${currency}`;
+            document.getElementById('totalWork').innerText = `${sumW.toFixed(2)} ${currency}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 mt-20">Пока пусто...</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(e => `
+                <div class="flex justify-between items-center py-4 border-b dark:border-gray-800 animate-in fade-in duration-300">
+                    <div>
+                        <div class="font-bold text-lg">${e.name}</div>
+                        <div class="text-xs text-gray-400">${new Date(e.date).toLocaleDateString('ru-RU')}</div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="font-black text-lg ${e.category === 'Личные' ? 'text-blue-500' : 'text-purple-500'}">${e.amount.toFixed(2)} ${currency}</div>
+                        <button onclick="deleteExpense(${e.id})" class="text-gray-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-circle-xmark text-xl"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addExpense() {
+            const name = document.getElementById('newName').value.trim();
+            const amount = parseFloat(document.getElementById('newAmount').value);
+            const date = document.getElementById('newDate').value;
+
+            if (name && !isNaN(amount) && date) {
+                expenses.push({
+                    id: Date.now(),
+                    name: name,
+                    amount: amount,
+                    date: date,
+                    category: currentTab === 0 ? 'Личные' : 'Рабочие'
+                });
+                
+                localStorage.setItem('fc_data_final', JSON.stringify(expenses));
+                document.getElementById('newName').value = '';
+                document.getElementById('newAmount').value = '';
+                renderList();
+            } else {
+                alert("Заполните все данные!");
+            }
+        }
+
+        function deleteExpense(id) {
+            if (confirm("Удалить этот расход?")) {
+                expenses = expenses.filter(e => e.id !== id);
+                localStorage.setItem('fc_data_final', JSON.stringify(expenses));
+                renderList();
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.getElementById('themeToggle').checked;
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('fc_theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('fc_theme', 'light');
+            }
+        }
+
+        function updateCurrency() {
+            currency = document.getElementById('currencySelect').value;
+            localStorage.setItem('fc_currency', currency);
             renderList();
         }
 
         function clearAllData() {
-            if (confirm("Удалить все данные?")) {
+            if (confirm("Вы уверены? Все данные будут удалены безвозвратно!")) {
                 expenses = [];
-                saveData();
+                localStorage.setItem('fc_data_final', JSON.stringify(expenses));
                 renderList();
                 closeSettings();
             }
         }
 
-        // Логика списка
-        function setTab(index) {
-            currentTab = index;
-            document.getElementById('tab0').className = `flex-1 ios-tab ${index === 0 ? 'active' : 'inactive'}`;
-            document.getElementById('tab1').className = `flex-1 ios-tab ${index === 1 ? 'active' : 'inactive'}`;
-            renderList();
-        }
-
-        function resetSearch() {
-            document.getElementById('searchInput').value = '';
-            renderList();
-        }
-
-        function updateTotals() {
-            let sumPersonal = expenses.filter(e => e.category === "Личные").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-            let sumWork = expenses.filter(e => e.category === "Рабочие").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-            document.getElementById('totalPersonal').innerText = sumPersonal.toFixed(2) + ' ' + currentCurrency;
-            document.getElementById('totalWork').innerText = sumWork.toFixed(2) + ' ' + currentCurrency;
-        }
-
-        function renderList() {
-            updateTotals();
-            const container = document.getElementById('listContainer');
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const isSearching = search.length > 0;
-            
-            let filtered = expenses.filter(e => {
-                if (isSearching) return e.name.toLowerCase().includes(search);
-                return e.category === (currentTab === 0 ? "Личные" : "Рабочие");
-            });
-
-            // Сортировка по дате (сначала новые)
-            filtered.sort((a, b) => {
-                const dateA = new Date(a.date.split('.').reverse().join('-'));
-                const dateB = new Date(b.date.split('.').reverse().join('-'));
-                return dateB - dateA || b.id - a.id;
-            });
-
-            if(filtered.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-400 mt-10">Нет записей</div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(e => {
-                const isPersonal = e.category === "Личные";
-                const amountColor = isPersonal ? "text-blue-500" : "text-purple-500 dark:text-purple-400";
-                
-                return `
-                <div class="flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-800">
-                    <div>
-                        <div class="font-semibold text-gray-800 dark:text-gray-100 text-lg">${e.name}</div>
-                        <div class="text-xs text-gray-400 dark:text-gray-500">${e.date}</div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="font-bold text-lg ${amountColor}">${(Number(e.amount) || 0).toFixed(2)} ${currentCurrency}</div>
-                        <button onclick="deleteExpense(${e.id})" class="text-red-400 p-2"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        function addExpense() {
-            const name = document.getElementById('newName').value;
-            const dateInput = document.getElementById('newDate').value;
-            let amount = document.getElementById('newAmount').value.replace(',', '.');
-            
-            // Если дата не выбрана, берем сегодня
-            const finalDate = dateInput || new Date().toISOString().split('T')[0];
-
-            if (name && amount && !isNaN(amount)) {
-                expenses.unshift({ 
-                    id: Date.now(), 
-                    name: name, 
-                    amount: parseFloat(amount), 
-                    category: currentTab === 0 ? "Личные" : "Рабочие", 
-                    date: new Date(finalDate).toLocaleDateString()
-                });
-                saveData();
-                document.getElementById('newName').value = ''; 
-                document.getElementById('newAmount').value = '';
-                document.getElementById('newDate').value = '';
-                renderList();
-            } else {
-                alert("Введите название и сумму");
-            }
-        }
-
-        function deleteExpense(id) {
-            if(confirm("Удалить?")) {
-                expenses = expenses.filter(e => e.id !== id); 
-                saveData(); 
-                renderList(); 
-            }
-        }
-
-        // График
-        function openChart() { document.getElementById('chartModal').style.display = 'flex'; setModalTab(currentTab); }
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+        function openChart() { document.getElementById('chartModal').style.display = 'flex'; updateChart(); }
         function closeChart() { document.getElementById('chartModal').style.display = 'none'; }
 
-        function setModalTab(index) {
-            modalTab = index;
-            document.getElementById('modalTab0').className = `flex-1 ios-tab ${index === 0 ? 'active' : 'inactive'}`;
-            document.getElementById('modalTab1').className = `flex-1 ios-tab ${index === 1 ? 'active' : 'inactive'}`;
-            renderChart();
-        }
-
-        function renderChart() {
-            const cat = modalTab === 0 ? "Личные" : "Рабочие";
-            let top = expenses.filter(e => e.category === cat).sort((a,b) => b.amount - a.amount).slice(0, 10);
-            const listContainer = document.getElementById('topListContainer');
+        function updateChart() {
+            const cat = currentTab === 0 ? 'Личные' : 'Рабочие';
+            const data = expenses.filter(e => e.category === cat);
             
-            if(top.length === 0) {
-                listContainer.innerHTML = `<div class="text-center text-gray-400 mt-10">Нет данных</div>`;
-                if (chartInstance) chartInstance.destroy();
-                return;
-            }
-
-            listContainer.innerHTML = top.map((e, index) => `
-                <div class="flex justify-between py-3 border-b border-gray-100 dark:border-gray-800">
-                    <span class="text-gray-700 dark:text-gray-300 font-medium">${index + 1}. ${e.name}</span>
-                    <span class="font-bold">${(Number(e.amount) || 0).toFixed(2)} ${currentCurrency}</span>
-                </div>
-            `).join('');
-
             const ctx = document.getElementById('myChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy(); 
-            Chart.defaults.color = isDarkMode ? '#9ca3af' : '#4b5563';
+            if (chartInstance) chartInstance.destroy();
+            
+            if (data.length === 0) return;
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: top.map(e => e.name),
+                    labels: data.map(e => e.name),
                     datasets: [{
-                        data: top.map(e => e.amount),
-                        backgroundColor: ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'],
-                        borderWidth: isDarkMode ? 2 : 0,
-                        borderColor: isDarkMode ? '#1f2937' : '#fff'
+                        data: data.map(e => e.amount),
+                        backgroundColor: ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#6366F1'],
+                        borderWidth: 0
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    cutout: '70%'
+                }
             });
+
+            document.getElementById('topList').innerHTML = data
+                .sort((a,b) => b.amount - a.amount)
+                .map(e => `<div class="flex justify-between p-2 border-b dark:border-gray-800"><span>${e.name}</span><b>${e.amount} ${currency}</b></div>`)
+                .join('');
         }
     </script>
 </body>
