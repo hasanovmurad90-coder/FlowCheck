@@ -3,36 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="FlowCheck">
+    <link rel="apple-touch-icon" href="logo.png">
+    
     <title>FlowCheck</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #fff; overscroll-behavior-y: none;}
         .ios-tab { padding: 8px 0; text-align: center; border-radius: 8px; font-weight: 500; font-size: 14px; transition: 0.2s; cursor: pointer;}
         .ios-tab.active { background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #000; }
         .ios-tab.inactive { color: #8e8e93; }
         .tab-bg { background-color: #f2f2f7; border-radius: 10px; padding: 2px; display: flex; }
-        /* Анимация Сплеш-экрана */
-        #splash { position: fixed; inset: 0; background: white; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        
+        #splash { position: fixed; inset: 0; background: white; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease-out; }
         .pulse { animation: pulseAnim 1s infinite alternate; }
-        @keyframes pulseAnim { from { opacity: 0.4; } to { opacity: 1; } }
-        /* Модальное окно */
+        @keyframes pulseAnim { from { opacity: 0.6; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
+        
         #modal { display: none; position: fixed; inset: 0; background: white; z-index: 40; flex-direction: column;}
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Экран загрузки -->
+    <!-- ЭКРАН ЗАГРУЗКИ -->
     <div id="splash">
-        <i class="fa-solid fa-heart-pulse text-blue-500 text-6xl mb-4 pulse"></i>
+        <img src="logo.png" alt="Логотип" class="w-28 h-28 mb-4 pulse rounded-3xl shadow-lg object-cover" onerror="this.style.display='none'">
         <h1 class="text-3xl font-bold pulse text-gray-800">FlowCheck</h1>
     </div>
 
-    <!-- Верхняя панель -->
-    <div class="px-4 pt-4 pb-2 bg-white flex items-center justify-between gap-3 border-b border-gray-100 z-10">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <div class="px-4 pt-4 pb-2 bg-white flex items-center justify-between gap-3 z-10">
         <div class="flex items-center gap-2 text-blue-500 font-bold text-xl cursor-pointer" onclick="resetSearch()">
-            <i class="fa-solid fa-heart-pulse"></i> FlowCheck
+            <img src="logo.png" alt="Лого" class="w-7 h-7 rounded-md object-cover" onerror="this.style.display='none'"> 
+            FlowCheck
         </div>
         <div class="flex-1 bg-gray-100 rounded-lg flex items-center px-3 py-2 text-sm">
             <i class="fa-solid fa-search text-gray-400 mr-2"></i>
@@ -41,31 +50,41 @@
         <button onclick="openChart()" class="text-blue-500 text-2xl"><i class="fa-solid fa-chart-pie"></i></button>
     </div>
 
-    <!-- Переключатель Личные/Рабочие -->
-    <div class="px-4 py-3 bg-white z-10">
+    <!-- БЛОК С ОБЩИМИ СУММАМИ (МАПАТЫ) -->
+    <div class="px-4 py-2 bg-white flex gap-3 z-10">
+        <div class="flex-1 bg-blue-50 rounded-xl p-3 border border-blue-100">
+            <div class="text-xs text-blue-500 font-semibold mb-1 uppercase tracking-wider">Всего Личные</div>
+            <div id="totalPersonal" class="text-xl font-bold text-blue-700">0.00 ₼</div>
+        </div>
+        <div class="flex-1 bg-purple-50 rounded-xl p-3 border border-purple-100">
+            <div class="text-xs text-purple-500 font-semibold mb-1 uppercase tracking-wider">Всего Рабочие</div>
+            <div id="totalWork" class="text-xl font-bold text-purple-700">0.00 ₼</div>
+        </div>
+    </div>
+
+    <!-- ПЕРЕКЛЮЧАТЕЛЬ Личные/Рабочие -->
+    <div class="px-4 pb-3 pt-1 bg-white border-b border-gray-100 z-10" id="tabsContainer">
         <div class="tab-bg">
             <div id="tab0" class="flex-1 ios-tab active" onclick="setTab(0)">Личные расходы</div>
             <div id="tab1" class="flex-1 ios-tab inactive" onclick="setTab(1)">Рабочие расходы</div>
         </div>
     </div>
 
-    <!-- Список расходов -->
-    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-24">
-        <!-- Сюда добавляются элементы через JS -->
-    </div>
+    <!-- СПИСОК РАСХОДОВ -->
+    <div id="listContainer" class="flex-1 overflow-y-auto px-4 pb-24 bg-white"></div>
 
-    <!-- Панель добавления (внизу) -->
+    <!-- ПАНЕЛЬ ДОБАВЛЕНИЯ -->
     <div class="fixed bottom-0 left-0 right-0 bg-gray-50 border-t border-gray-200 p-4 pb-6 flex gap-2 z-20">
-        <input type="text" id="newName" placeholder="Название" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:border-blue-500">
-        <input type="number" id="newAmount" placeholder="Сумма" class="w-24 border rounded-lg px-3 py-2 outline-none focus:border-blue-500">
-        <button onclick="addExpense()" class="text-green-500 text-3xl"><i class="fa-solid fa-circle-plus"></i></button>
+        <input type="text" id="newName" placeholder="Название" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg">
+        <input type="number" inputmode="decimal" id="newAmount" placeholder="Сумма" class="w-24 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-lg">
+        <button onclick="addExpense()" class="text-green-500 text-4xl"><i class="fa-solid fa-circle-plus"></i></button>
     </div>
 
-    <!-- Окно Аналитики (График) -->
+    <!-- ОКНО АНАЛИТИКИ -->
     <div id="modal">
         <div class="flex justify-between items-center p-4 border-b">
             <h2 class="text-xl font-bold">Аналитика</h2>
-            <button onclick="closeChart()" class="text-blue-500 font-semibold">Закрыть</button>
+            <button onclick="closeChart()" class="text-blue-500 font-semibold text-lg">Закрыть</button>
         </div>
         <div class="px-4 py-3">
             <div class="tab-bg">
@@ -82,29 +101,47 @@
     </div>
 
     <script>
-        // --- ДАННЫЕ ---
-        let expenses = JSON.parse(localStorage.getItem('flowCheckData')) || [];
-        let currentTab = 0; // 0 - Личные, 1 - Рабочие
+        // ИЗМЕНЕНО: Ключ V2, чтобы сбросить старые поломанные данные
+        let expenses = [];
+        try {
+            expenses = JSON.parse(localStorage.getItem('flowCheckDataV2')) || [];
+            if (!Array.isArray(expenses)) expenses = [];
+        } catch(e) {
+            expenses = [];
+        }
+
+        let currentTab = 0; 
         let modalTab = 0;
         let chartInstance = null;
 
-        // Генерация стартовых данных, если пусто
+        // Стартовые данные
         if (expenses.length === 0) {
             const pers = ["Продукты", "Транспорт", "Аренда", "Кофе"];
             const work = ["Офис", "Софт", "Реклама", "Такси"];
-            pers.forEach(n => expenses.push({ id: Date.now()+Math.random(), name: n, amount: Math.floor(Math.random() * 1500 + 100), category: "Личные", date: new Date().toLocaleDateString() }));
-            work.forEach(n => expenses.push({ id: Date.now()+Math.random(), name: n, amount: Math.floor(Math.random() * 4000 + 500), category: "Рабочие", date: new Date().toLocaleDateString() }));
+            pers.forEach(n => expenses.push({ id: Date.now()+Math.random(), name: n, amount: Math.floor(Math.random() * 50 + 5), category: "Личные", date: new Date().toLocaleDateString() }));
+            work.forEach(n => expenses.push({ id: Date.now()+Math.random(), name: n, amount: Math.floor(Math.random() * 200 + 20), category: "Рабочие", date: new Date().toLocaleDateString() }));
             saveData();
         }
 
-        function saveData() { localStorage.setItem('flowCheckData', JSON.stringify(expenses)); }
+        function saveData() { 
+            localStorage.setItem('flowCheckDataV2', JSON.stringify(expenses)); 
+        }
 
-        // --- ЛОГИКА ИНТЕРФЕЙСА ---
-        setTimeout(() => {
-            document.getElementById('splash').style.opacity = '0';
-            setTimeout(() => document.getElementById('splash').style.display = 'none', 500);
-            renderList();
-        }, 1500);
+        // БЕЗОПАСНОЕ УДАЛЕНИЕ ЗАГРУЗОЧНОГО ЭКРАНА
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash');
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => {
+                        splash.style.display = 'none';
+                        renderList(); // Рендерим только когда экран пропал
+                    }, 400);
+                } else {
+                    renderList();
+                }
+            }, 1000);
+        });
 
         function setTab(index) {
             currentTab = index;
@@ -118,39 +155,93 @@
             renderList();
         }
 
-        // --- РЕНДЕР СПИСКА ---
+        // БЕЗОПАСНЫЙ ПОДСЧЕТ СУММ
+        function updateTotals() {
+            try {
+                let sumPersonal = expenses.filter(e => e.category === "Личные").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+                let sumWork = expenses.filter(e => e.category === "Рабочие").reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+                
+                document.getElementById('totalPersonal').innerText = sumPersonal.toFixed(2) + ' ₼';
+                document.getElementById('totalWork').innerText = sumWork.toFixed(2) + ' ₼';
+            } catch (error) {
+                console.error("Ошибка подсчета:", error);
+            }
+        }
+
         function renderList() {
+            updateTotals();
+
             const container = document.getElementById('listContainer');
             const search = document.getElementById('searchInput').value.toLowerCase();
-            const cat = currentTab === 0 ? "Личные" : "Рабочие";
-            const color = currentTab === 0 ? "text-blue-500" : "text-purple-500";
+            const isSearching = search.length > 0;
             
-            let filtered = expenses.filter(e => e.category === cat && e.name.toLowerCase().includes(search));
-            filtered.sort((a,b) => b.id - a.id); // Новые сверху
+            document.getElementById('tabsContainer').style.opacity = isSearching ? '0.5' : '1';
 
-            container.innerHTML = filtered.map(e => `
+            let filtered = expenses.filter(e => {
+                if (isSearching) {
+                    return e.name.toLowerCase().includes(search);
+                } else {
+                    const cat = currentTab === 0 ? "Личные" : "Рабочие";
+                    return e.category === cat;
+                }
+            });
+
+            filtered.sort((a,b) => b.id - a.id); 
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-400 mt-10">Ничего не найдено</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(e => {
+                const isPersonal = e.category === "Личные";
+                const amountColor = isPersonal ? "text-blue-500" : "text-purple-500";
+                
+                let categoryBadge = '';
+                if (isSearching) {
+                    categoryBadge = isPersonal 
+                        ? `<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full ml-2">Личные</span>`
+                        : `<span class="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full ml-2">Рабочие</span>`;
+                }
+
+                return `
                 <div class="flex justify-between items-center py-3 border-b border-gray-100">
                     <div>
-                        <div class="font-semibold text-gray-800">${e.name}</div>
+                        <div class="font-semibold text-gray-800 text-lg flex items-center">
+                            ${e.name} ${categoryBadge}
+                        </div>
                         <div class="text-xs text-gray-400">${e.date}</div>
                     </div>
                     <div class="flex items-center gap-4">
-                        <div class="font-bold ${color}">${parseFloat(e.amount).toFixed(2)} ₽</div>
-                        <button onclick="deleteExpense(${e.id})" class="text-red-400"><i class="fa-solid fa-trash"></i></button>
+                        <div class="font-bold text-lg ${amountColor}">${(Number(e.amount) || 0).toFixed(2)} ₼</div>
+                        <button onclick="deleteExpense(${e.id})" class="text-red-400 text-xl p-2"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function addExpense() {
             const name = document.getElementById('newName').value;
-            let amount = document.getElementById('newAmount').value.replace(',', '.');
+            let amount = document.getElementById('newAmount').value.replace(',', '.'); 
+            
             if (name && amount && !isNaN(amount)) {
-                expenses.unshift({ id: Date.now(), name, amount: parseFloat(amount), category: currentTab === 0 ? "Личные" : "Рабочие", date: new Date().toLocaleDateString() });
+                expenses.unshift({ 
+                    id: Date.now(), 
+                    name: name, 
+                    amount: parseFloat(amount), 
+                    category: currentTab === 0 ? "Личные" : "Рабочие", 
+                    date: new Date().toLocaleDateString() 
+                });
                 saveData();
                 document.getElementById('newName').value = '';
                 document.getElementById('newAmount').value = '';
+                document.getElementById('newName').blur();
+                document.getElementById('newAmount').blur();
+                
                 renderList();
+            } else {
+                alert("Пожалуйста, введите название и корректную сумму.");
             }
         }
 
@@ -160,11 +251,7 @@
             renderList();
         }
 
-        // --- ГРАФИК (АНАЛИТИКА) ---
-        function openChart() {
-            document.getElementById('modal').style.display = 'flex';
-            setModalTab(currentTab);
-        }
+        function openChart() { document.getElementById('modal').style.display = 'flex'; setModalTab(currentTab); }
         function closeChart() { document.getElementById('modal').style.display = 'none'; }
 
         function setModalTab(index) {
@@ -178,17 +265,22 @@
             const cat = modalTab === 0 ? "Личные" : "Рабочие";
             let top = expenses.filter(e => e.category === cat).sort((a,b) => b.amount - a.amount).slice(0, 10);
             
-            // Список под графиком
-            document.getElementById('topListContainer').innerHTML = top.map(e => `
-                <div class="flex justify-between py-2 border-b border-gray-100">
-                    <span class="text-gray-700">${e.name}</span>
-                    <span class="font-bold">${parseFloat(e.amount).toFixed(2)} ₽</span>
+            const listContainer = document.getElementById('topListContainer');
+            if(top.length === 0) {
+                listContainer.innerHTML = `<div class="text-center text-gray-400 mt-10">Нет данных для графика</div>`;
+                if (chartInstance) chartInstance.destroy();
+                return;
+            }
+
+            listContainer.innerHTML = top.map((e, index) => `
+                <div class="flex justify-between py-3 border-b border-gray-100">
+                    <span class="text-gray-700 font-medium">${index + 1}. ${e.name}</span>
+                    <span class="font-bold text-gray-900">${(Number(e.amount) || 0).toFixed(2)} ₼</span>
                 </div>
             `).join('');
 
-            // Рисуем график
             const ctx = document.getElementById('myChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
+            if (chartInstance) chartInstance.destroy(); 
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -197,10 +289,10 @@
                     datasets: [{
                         data: top.map(e => e.amount),
                         backgroundColor: ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16', '#06B6D4'],
-                        borderWidth: 0
+                        borderWidth: 0, hoverOffset: 4
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }, cutout: '65%' }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } }, cutout: '65%' }
             });
         }
     </script>
